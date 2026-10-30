@@ -1,161 +1,271 @@
-# Mengimpor modul mysql.connector untuk mengendalikan koneksi ke database MySQL
+
 import mysql.connector
-# Mengimpor modul dasar tkinter untuk pembuatan komponen GUI
 import tkinter as tk
-# Mengimpor ttk (themed tkinter) dan messagebox untuk dialog peringatan/notifikasi
 from tkinter import ttk, messagebox
 
 
-# Deklarasi kelas utama untuk mengelola antarmuka (GUI) jendela login
 class LoginWindow:
-    # Konstruktor kelas yang dipanggil pertama kali saat objek dikreasikan
     def __init__(self, root):
-        # Menyimpan reference jendela utama (root window) Tkinter ke atribut kelas
         self.root = root
-        # Mengatur judul yang ditampilkan pada title bar jendela aplikasi
-        self.root.title("Login - SIAKAD")
-        # Menentukan dimensi resolusi jendela (lebar 380px dan tinggi 250px)
-        self.root.geometry("380x250")
-        # Mengunci ukuran jendela agar tidak bisa diubah ukurannya (disable resize)
+        self.root.title("SIAKAD | Login")
+        self.root.geometry("520x570")
         self.root.resizable(False, False)
-        # Mengatur warna latar belakang seluruh jendela menjadi abu-abu terang (#f0f0f0)
-        self.root.configure(bg="#f0f0f0")
+        self.root.configure(bg="#F1F5F9")
 
-        # konfigurasi koneksi database MySQL
+        # Konfigurasi database
         self.db_config = {
-            'host': 'localhost',      # Alamat database
-            'user': 'root',           # Nama pengguna akun MySQL
-            'password': '',           # Kata sandi akses MySQL (kosong secara default)
-            'database': 'siakad'      # Nama database yang digunakan
+            "host": "localhost",
+            "user": "root",
+            "password": "",
+            "database": "siakad"
         }
 
-        # Membuat container/frame utama untuk menampung seluruh elemen visual
-        main_frame = tk.Frame(self.root, bg="#f0f0f0")
-        # Menempatkan frame utama dengan padding horizontal (padx) & vertikal (pady) sebesar 20px
-        main_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
+        # Warna tema
+        self.navy = "#142B4A"
+        self.blue = "#2563EB"
+        self.light_blue = "#EFF6FF"
+        self.background = "#F1F5F9"
+        self.text_color = "#1E293B"
+        self.muted = "#64748B"
 
-        # Membuat elemen teks/label judul utama form login
-        lbl_title = tk.Label(
-            main_frame, 
-            text="SIAKAD LOGIN",      # Teks judul yang ditampilkan
-            font=("Arial", 14, "bold"),# Jenis huruf Arial, ukuran 14, dicetak tebal
-            bg="#f0f0f0",             # Warna latar disesuaikan dengan warna induknya
-            fg="black"                # Warna teks judul hitam
+        # Style komponen
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure(
+            "Modern.TEntry",
+            padding=10,
+            font=("Segoe UI", 11),
+            fieldbackground="white"
         )
-        # Posisikan label judul di bagian atas frame utama dengan margin bawah 20px
-        lbl_title.pack(pady=(0, 20))
 
-        # Membuat sub-frame khusus untuk menyusun label dan input teks menggunakan tata letak Grid
-        form_frame = tk.Frame(main_frame, bg="#f0f0f0")
-        # Menampilkan sub-frame form di dalam main_frame
-        form_frame.pack()
-
-        # Baris 0: Label petunjuk input Username (NIP)
-        lbl_user = tk.Label(form_frame, text="Username:", font=("Arial", 10), bg="#f0f0f0", anchor="e", width=10)
-        # Menempatkan label di baris 0 kolom 0, dengan posisi rata kanan (sticky="e")
-        lbl_user.grid(row=0, column=0, padx=5, pady=6, sticky="e")
-        # Membuat kotak isian teks (entry) untuk memasukkan NIP
-        self.entry_nip = tk.Entry(form_frame, font=("Arial", 10), width=22, relief=tk.SOLID, bd=1)
-        # Menempatkan kotak input NIP di baris 0 kolom 1
-        self.entry_nip.grid(row=0, column=1, padx=5, pady=6)
-        # Mengatur kursor agar otomatis aktif pada kotak input NIP saat program dibuka
-        self.entry_nip.focus()
-
-        # Baris 1: Label petunjuk input Password (Email)
-        lbl_pass = tk.Label(form_frame, text="Password:", font=("Arial", 10), bg="#f0f0f0", anchor="e", width=10)
-        # Menempatkan label password di baris 1 kolom 0
-        lbl_pass.grid(row=1, column=0, padx=5, pady=6, sticky="e")
-        # Membuat kotak isian teks untuk email/password dengan karakter khusus (show="*")
-        self.entry_email = tk.Entry(form_frame, font=("Arial", 10), width=22, show="*", relief=tk.SOLID, bd=1)
-        # Menempatkan kotak input password di baris 1 kolom 1
-        self.entry_email.grid(row=1, column=1, padx=5, pady=6)
-
-        # Membuat tombol (button) untuk eksekusi tindakan login
-        btn_login = tk.Button(
-            main_frame, 
-            text="Login",             # Teks pada tombol
-            font=("Arial", 10, "bold"),# Gaya penulisan teks tombol
-            bg="#4CAF50",             # Warna latar belakang tombol (hijau)
-            fg="white",               # Warna teks tombol (putih)
-            activebackground="#45a049",# Warna tombol saat diklik
-            activeforeground="white", # Warna teks saat diklik
-            width=15,                 # Lebar ukuran tombol
-            bd=1,                     # Ketebalan garis tepi tombol
-            cursor="hand2",           # Mengubah ikon kursor mouse menjadi bentuk tangan
-            command=self.proses_login # Menghubungkan klik tombol dengan metode proses_login()
+        # Header
+        header = tk.Frame(
+            root,
+            bg=self.navy,
+            height=175
         )
-        # Posisikan tombol login di bawah blok form input dengan jarak atas 20px
-        btn_login.pack(pady=(20, 0))
+        header.pack(fill="x")
+        header.pack_propagate(False)
 
-        # Mengikat (binding) tombol 'Enter' pada keyboard untuk menjalankan fungsi proses_login()
-        self.root.bind('<Return>', lambda event: self.proses_login())
+        tk.Label(
+            header,
+            text="SIAKAD",
+            font=("Segoe UI", 27, "bold"),
+            fg="white",
+            bg=self.navy
+        ).pack(pady=(28, 3))
 
-    # Metode untuk menangani alur verifikasi data login pengampu
+        tk.Label(
+            header,
+            text="SISTEM INFORMASI AKADEMIK",
+            font=("Segoe UI", 10, "bold"),
+            fg="#93C5FD",
+            bg=self.navy
+        ).pack()
+
+        tk.Label(
+            header,
+            text="Silakan masuk ke akun Anda",
+            font=("Segoe UI", 10),
+            fg="#E2E8F0",
+            bg=self.navy
+        ).pack(pady=8)
+
+        # Kartu login
+        card = tk.Frame(
+            root,
+            bg="white",
+            highlightbackground="#E2E8F0",
+            highlightthickness=1
+        )
+        card.place(x=45, y=140, width=430, height=365)
+
+        tk.Label(
+            card,
+            text="Selamat Datang!",
+            font=("Segoe UI", 20, "bold"),
+            fg=self.text_color,
+            bg="white"
+        ).pack(anchor="w", padx=32, pady=(28, 3))
+
+        tk.Label(
+            card,
+            text="Masukkan data akun untuk melanjutkan.",
+            font=("Segoe UI", 9),
+            fg=self.muted,
+            bg="white"
+        ).pack(anchor="w", padx=32, pady=(0, 22))
+
+        # Input NIP
+        tk.Label(
+            card,
+            text="Username / NIP",
+            font=("Segoe UI", 10, "bold"),
+            fg=self.text_color,
+            bg="white"
+        ).pack(anchor="w", padx=32, pady=(0, 7))
+
+        self.entry_nip = ttk.Entry(
+            card,
+            style="Modern.TEntry",
+            width=35
+        )
+        self.entry_nip.pack(fill="x", padx=32, ipady=2)
+
+        # Input password
+        tk.Label(
+            card,
+            text="Password",
+            font=("Segoe UI", 10, "bold"),
+            fg=self.text_color,
+            bg="white"
+        ).pack(anchor="w", padx=32, pady=(16, 7))
+
+        password_frame = tk.Frame(
+            card,
+            bg="white"
+        )
+        password_frame.pack(fill="x", padx=32)
+
+        self.entry_email = ttk.Entry(
+            password_frame,
+            style="Modern.TEntry",
+            show="*"
+        )
+        self.entry_email.pack(
+            side="left",
+            fill="x",
+            expand=True,
+            ipady=2
+        )
+
+        self.show_password = False
+
+        self.btn_show = tk.Button(
+            password_frame,
+            text="Lihat",
+            font=("Segoe UI", 9, "bold"),
+            fg=self.blue,
+            bg="white",
+            activebackground="white",
+            activeforeground=self.navy,
+            relief="flat",
+            cursor="hand2",
+            command=self.toggle_password
+        )
+        self.btn_show.pack(side="left", padx=(7, 0))
+
+        # Tombol login
+        self.btn_login = tk.Button(
+            card,
+            text="MASUK KE AKUN",
+            font=("Segoe UI", 11, "bold"),
+            bg=self.blue,
+            fg="white",
+            activebackground="#1D4ED8",
+            activeforeground="white",
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            command=self.proses_login
+        )
+        self.btn_login.pack(
+            fill="x",
+            padx=32,
+            pady=(25, 0),
+            ipady=10
+        )
+
+        # Efek hover tombol
+        self.btn_login.bind(
+            "<Enter>",
+            lambda event: self.btn_login.config(bg="#1D4ED8")
+        )
+        self.btn_login.bind(
+            "<Leave>",
+            lambda event: self.btn_login.config(bg=self.blue)
+        )
+
+        # Footer
+        tk.Label(
+            root,
+            text="SIAKAD  •  Sistem Informasi Akademik",
+            font=("Segoe UI", 9),
+            fg=self.muted,
+            bg=self.background
+        ).pack(side="bottom", pady=17)
+
+        self.entry_nip.focus_set()
+        self.root.bind("<Return>", lambda event: self.proses_login())
+
+    def toggle_password(self):
+        self.show_password = not self.show_password
+
+        if self.show_password:
+            self.entry_email.config(show="")
+            self.btn_show.config(text="Sembunyi")
+        else:
+            self.entry_email.config(show="*")
+            self.btn_show.config(text="Lihat")
+
     def proses_login(self):
-        # Mengambil input dari entry_nip dan menghapus spasi ekstra di awal/akhir
         nip = self.entry_nip.get().strip()
-        # Mengambil input dari entry_email dan menghapus spasi ekstra di awal/akhir
         email = self.entry_email.get().strip()
 
-        # Memeriksa apakah ada salah satu atau kedua field yang kosong
         if not nip or not email:
-            # Menampilkan pesan peringatan dalam bentuk messagebox pop-up
-            messagebox.showwarning("Peringatan", "Username (NIP) dan Password (Email) wajib diisi!")
-            # Menghentikan eksekusi fungsi jika data belum lengkap
+            messagebox.showwarning(
+                "Peringatan",
+                "Username dan password wajib diisi!"
+            )
             return
 
-        # Inisialisasi variabel objek koneksi dengan nilai awal None
         conn = None
-        # Inisialisasi variabel objek cursor dengan nilai awal None
         cursor = None
 
         try:
-            # Mengatur ikatan koneksi ke database menggunakan kredensial yang tersimpan
             conn = mysql.connector.connect(**self.db_config)
-            # Membuat objek kursor dengan output format dictionary (dictionary=True)
             cursor = conn.cursor(dictionary=True)
 
-            # Query SQL dengan parameterize placeholder (%s) untuk mencegah serangan SQL Injection
-            query = "SELECT nip, nama_dosen, email FROM dosen WHERE nip = %s AND email = %s"
-            # Mengeksekusi perintah query SQL dengan menyisipkan nilai nip dan email
+            query = """
+                SELECT nip, nama_dosen, email
+                FROM dosen
+                WHERE nip = %s AND email = %s
+            """
+
             cursor.execute(query, (nip, email))
-            # Mengambil satu baris data hasil pencarian dari database
             user = cursor.fetchone()
 
-            # Mengecek apakah data dosen ditemukan di dalam database
             if user:
-                # Menampilkan pesan pop-up sukses login disertai nama dosen
-                messagebox.showinfo("Berhasil", f"Login berhasil!\nSelamat datang, {user['nama_dosen']}.")
-                # Memanggil metode pembuka dashboard utama
+                messagebox.showinfo(
+                    "Login Berhasil",
+                    f"Selamat datang, {user['nama_dosen']}!"
+                )
                 self.buka_dashboard(user)
             else:
-                # Menampilkan pesan pop-up kegagalan autentikasi
-                messagebox.showerror("Gagal", "Login gagal! Username atau Password salah.")
+                messagebox.showerror(
+                    "Login Gagal",
+                    "Username atau password salah."
+                )
 
-        # Menangkap galat/error yang berkaitan dengan kegagalan koneksi atau query MySQL
         except mysql.connector.Error as err:
-            # Menampilkan rincian kesalahan sistem database ke pengguna
-            messagebox.showerror("Database Error", f"Koneksi database bermasalah:\n{err}")
-        # Blok yang pasti akan dieksekusi setelah try/except selesai dijalankan
+            messagebox.showerror(
+                "Database Error",
+                f"Koneksi database bermasalah:\n{err}"
+            )
+
         finally:
-            # Menutup kursor jika kursor aktif/terbuka
             if cursor:
                 cursor.close()
-            # Menutup koneksi database jika status koneksi sedang terhubung
+
             if conn and conn.is_connected():
                 conn.close()
 
-    # Metode pembersih jendela login setelah autentikasi berhasil
     def buka_dashboard(self, user):
-        # Memusnahkan/menutup seluruh komponen jendela login saat ini
+        # Tutup halaman login setelah berhasil masuk
         self.root.destroy()
 
 
-# Titik awal eksekusi program Python (Main Entry Point)
 if __name__ == "__main__":
-    # Menginisialisasi objek aplikasi utama Tkinter
     root = tk.Tk()
-    # Membuat objek/instance kelas LoginWindow
     app = LoginWindow(root)
-    # Jalankan loop acara (event loop) utama agar GUI tetap terbuka dan responsif
     root.mainloop()

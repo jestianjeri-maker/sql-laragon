@@ -1,288 +1,641 @@
-# Mengimpor modul os untuk interaksi sistem operasi jika diperlukan
-import os
-# Mengimpor modul tkinter dasar untuk pembuatan komponen GUI
+
 import tkinter as tk
-# Mengimpor modul ttk untuk widget bertema (seperti Combobox & Treeview) dan messagebox untuk dialog pop-up
 from tkinter import ttk, messagebox
-# Mengimpor mysql.connector untuk mengendalikan koneksi dan operasi database MySQL
 import mysql.connector
 
-# --- KONEKSI DATABASE ---
-# Fungsi untuk membuat dan mengembalikan objek koneksi ke database MySQL
+# =====================================
+# KONEKSI DATABASE
+# =====================================
 def connect_db():
     return mysql.connector.connect(
-        host="localhost",      # Alamat host server MySQL
-        user="root",           # Username untuk login ke MySQL
-        password="",           # Password pengguna (kosongkan jika tidak ada password)
-        database="siakad"      # Nama database yang dituju
+        host="localhost",
+        user="root",
+        password="",
+        database="siakad"
     )
 
-# --- FUNGSI CRUD ---
-# Fungsi untuk memuat dan menampilkan seluruh data dari tabel database ke Treeview
-def load_data():
-    # Menghapus seluruh baris data lama yang ada di Treeview sebelum memuat data baru
-    for row in tree.get_children():
-        tree.delete(row)
-    try:
-        # Membuka koneksi ke database
-        db = connect_db()
-        # Membuat objek kursor untuk mengeksekusi query SQL
-        cursor = db.cursor()
-        # Mengeksekusi query untuk mengambil semua record dari tabel dosen
-        cursor.execute("SELECT * FROM dosen")
-        # Mengambil seluruh baris hasil query SQL
-        rows = cursor.fetchall()
-        # Memasukkan setiap baris data hasil query ke dalam komponen Treeview (tabel GUI)
-        for row in rows:
-            tree.insert("", "end", values=row)
-        # Menutup koneksi database
-        db.close()
-    except Exception as e:
-        # Menampilkan pop-up error jika terjadi kegagalan pengambilan data dari database
-        messagebox.showerror("Database Error", f"Gagal mengambil data: {e}")
 
-# Fungsi untuk menambahkan record dosen baru ke database
-def tambah_data():
-    # Mengambil nilai teks dari masing-masing field form input
-    nip = entry_nip.get()
-    nama = entry_nama.get()
-    jk = combo_jk.get()
-    email = entry_email.get()
-    tlp = entry_tlp.get()
-    pendidikan = entry_pendidikan.get()
-    bidang = entry_bidang.get()
+# =====================================
+# CLASS APLIKASI SIAKAD
+# =====================================
+class SIAKADApp:
 
-    # Validasi input wajib (NIP dan Nama Dosen tidak boleh kosong)
-    if not nip or not nama:
-        messagebox.showwarning("Warning", "NIP dan Nama Dosen wajib diisi!")
-        return
+    def __init__(self, root):
+        self.root = root
+        self.selected_nip = None
 
-    try:
-        # Membuka koneksi database
-        db = connect_db()
-        cursor = db.cursor()
-        # Query SQL INSERT dengan placeholder (%s) untuk mencegah SQL Injection
-        sql = "INSERT INTO dosen (nip, nama_dosen, jenis_kelamin, email, no_telepon, pendidikan_terakhir, bidang_keahlian) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-        # Tuple berisi kumpulan nilai variabel input
-        val = (nip, nama, jk, email, tlp, pendidikan, bidang)
-        # Mengeksekusi query INSERT beserta nilainya
-        cursor.execute(sql, val)
-        # Menyimpan perubahan transaksi ke database secara permanen
-        db.commit()
-        # Menutup koneksi database
-        db.close()
-        # Menampilkan notifikasi sukses
-        messagebox.showinfo("Sukses", "Data berhasil ditambahkan!")
-        # Mengosongkan form input
-        clear_fields()
-        # Memperbarui tampilan data pada tabel Treeview
-        load_data()
-    except Exception as e:
-        # Menampilkan pesan error jika query INSERT gagal dieksekusi
-        messagebox.showerror("Error", f"Gagal menambah data: {e}")
+        self.root.title("SIAKAD - Data Dosen")
+        self.root.geometry("1150x700")
+        self.root.minsize(950, 600)
+        self.root.configure(bg="#F1F5F9")
 
-# Fungsi untuk memperbarui (update) data dosen yang dipilih
-def edit_data():
-    # Memeriksa baris mana yang sedang dipilih di Treeview
-    selected = tree.selection()
-    if not selected:
-        messagebox.showwarning("Warning", "Pilih data di tabel yang ingin diubah!")
-        return
+        self.entries = {}
 
-    # Mengambil nilai terbaru dari masing-masing field form input
-    nip = entry_nip.get()
-    nama = entry_nama.get()
-    jk = combo_jk.get()
-    email = entry_email.get()
-    tlp = entry_tlp.get()
-    pendidikan = entry_pendidikan.get()
-    bidang = entry_bidang.get()
+        self.setup_style()
+        self.create_header()
+        self.create_form()
+        self.create_table()
+        self.create_status()
 
-    try:
-        # Membuka koneksi database
-        db = connect_db()
-        cursor = db.cursor()
-        # Query SQL UPDATE untuk mengubah data berdasarkan klausa WHERE nip
-        sql = """UPDATE dosen SET nama_dosen=%s, jenis_kelamin=%s, email=%s, 
-                 no_telepon=%s, pendidikan_terakhir=%s, bidang_keahlian=%s WHERE nip=%s"""
-        # Tuple nilai parameter query
-        val = (nama, jk, email, tlp, pendidikan, bidang, nip)
-        # Mengeksekusi query UPDATE
-        cursor.execute(sql, val)
-        # Menyimpan perubahan transaksi secara permanen
-        db.commit()
-        # Menutup koneksi database
-        db.close()
-        # Menampilkan notifikasi sukses
-        messagebox.showinfo("Sukses", "Data berhasil diperbarui!")
-        # Mengosongkan form input dan merefresh tabel
-        clear_fields()
-        load_data()
-    except Exception as e:
-        # Menampilkan pop-up error jika terjadi kendala saat mengedit data
-        messagebox.showerror("Error", f"Gagal memperbarui data: {e}")
+        self.load_data()
 
-# Fungsi untuk menghapus record dosen dari database
-def hapus_data():
-    # Memeriksa apakah ada item tabel yang dipilih
-    selected = tree.selection()
-    if not selected:
-        messagebox.showwarning("Warning", "Pilih data di tabel yang ingin dihapus!")
-        return
+    # =====================================
+    # STYLE
+    # =====================================
+    def setup_style(self):
+        style = ttk.Style()
+        style.theme_use("clam")
 
-    # Mengambil NIP dari input field sebagai acuan penghapusan
-    nip = entry_nip.get()
-    # Menampilkan dialog konfirmasi Ya/Tidak sebelum menghapus
-    confirm = messagebox.askyesno("Konfirmasi", f"Yakin ingin menghapus dosen NIP {nip}?")
-    if confirm:
+        style.configure(
+            "Treeview",
+            background="white",
+            foreground="#334155",
+            rowheight=35,
+            fieldbackground="white",
+            font=("Arial", 10)
+        )
+
+        style.configure(
+            "Treeview.Heading",
+            background="#1E3A8A",
+            foreground="white",
+            font=("Arial", 10, "bold"),
+            padding=10
+        )
+
+        style.map(
+            "Treeview",
+            background=[("selected", "#BFDBFE")],
+            foreground=[("selected", "#1E3A8A")]
+        )
+
+    # =====================================
+    # HEADER
+    # =====================================
+    def create_header(self):
+        header = tk.Frame(
+            self.root,
+            bg="#172554",
+            height=100
+        )
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        tk.Label(
+            header,
+            text="SIAKAD",
+            font=("Arial", 23, "bold"),
+            fg="white",
+            bg="#172554"
+        ).pack(anchor="w", padx=30, pady=(18, 0))
+
+        tk.Label(
+            header,
+            text="Sistem Informasi Akademik | Manajemen Data Dosen",
+            font=("Arial", 10),
+            fg="#BFDBFE",
+            bg="#172554"
+        ).pack(anchor="w", padx=32)
+
+    # =====================================
+    # FORM DATA DOSEN
+    # =====================================
+    def create_form(self):
+        form = tk.Frame(
+            self.root,
+            bg="white",
+            highlightbackground="#E2E8F0",
+            highlightthickness=1
+        )
+        form.pack(fill="x", padx=25, pady=20)
+
+        tk.Label(
+            form,
+            text="FORMULIR DATA DOSEN",
+            font=("Arial", 14, "bold"),
+            fg="#1E3A8A",
+            bg="white"
+        ).grid(row=0, column=0, columnspan=4,
+               sticky="w", padx=20, pady=15)
+
+        fields = [
+            ("nip", "NIP"),
+            ("nama", "Nama Dosen"),
+            ("jk", "Jenis Kelamin"),
+            ("email", "Email"),
+            ("tlp", "No. Telepon"),
+            ("pendidikan", "Pendidikan Terakhir"),
+            ("bidang", "Bidang Keahlian")
+        ]
+
+        for i, (key, label) in enumerate(fields):
+            row = (i // 2) + 1
+            col = (i % 2) * 2
+
+            tk.Label(
+                form,
+                text=label,
+                font=("Arial", 10, "bold"),
+                bg="white",
+                fg="#475569"
+            ).grid(
+                row=row, column=col,
+                sticky="w", padx=(20, 8), pady=9
+            )
+
+            if key == "jk":
+                widget = ttk.Combobox(
+                    form,
+                    values=["Laki-laki", "Perempuan"],
+                    state="readonly",
+                    font=("Arial", 10),
+                    width=27
+                )
+            else:
+                widget = tk.Entry(
+                    form,
+                    font=("Arial", 10),
+                    bg="#F8FAFC",
+                    fg="#334155",
+                    relief="flat",
+                    highlightthickness=1,
+                    highlightbackground="#CBD5E1",
+                    highlightcolor="#3B82F6"
+                )
+
+            widget.grid(
+                row=row, column=col + 1,
+                sticky="ew", padx=(0, 20), pady=9,
+                ipady=7
+            )
+
+            self.entries[key] = widget
+
+        form.grid_columnconfigure(1, weight=1)
+        form.grid_columnconfigure(3, weight=1)
+
+        # Tombol aksi
+        button_frame = tk.Frame(form, bg="white")
+        button_frame.grid(
+            row=5, column=0, columnspan=4,
+            sticky="w", padx=20, pady=18
+        )
+
+        self.create_button(
+            button_frame, "＋ TAMBAH",
+            "#2563EB", self.tambah_data
+        )
+
+        self.create_button(
+            button_frame, "✎ EDIT",
+            "#D97706", self.update_data
+        )
+
+        self.create_button(
+            button_frame, "✕ HAPUS",
+            "#DC2626", self.hapus_data
+        )
+
+        self.create_button(
+            button_frame, "↻ RESET",
+            "#64748B", self.clear_fields
+        )
+
+    # =====================================
+    # MEMBUAT TOMBOL
+    # =====================================
+    def create_button(self, parent, text, color, command):
+        btn = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            bg=color,
+            fg="white",
+            activebackground=color,
+            activeforeground="white",
+            font=("Arial", 9, "bold"),
+            relief="flat",
+            cursor="hand2",
+            padx=15,
+            pady=10
+        )
+
+        btn.pack(side="left", padx=(0, 10))
+
+        btn.bind(
+            "<Enter>",
+            lambda e: btn.config(bg="#334155")
+        )
+
+        btn.bind(
+            "<Leave>",
+            lambda e: btn.config(bg=color)
+        )
+
+        return btn
+
+    # =====================================
+    # TABEL DATA DOSEN
+    # =====================================
+    def create_table(self):
+        container = tk.Frame(
+            self.root,
+            bg="white",
+            highlightbackground="#E2E8F0",
+            highlightthickness=1
+        )
+        container.pack(
+            fill="both",
+            expand=True,
+            padx=25,
+            pady=(0, 15)
+        )
+
+        tk.Label(
+            container,
+            text="DAFTAR DATA DOSEN",
+            font=("Arial", 14, "bold"),
+            fg="#1E3A8A",
+            bg="white"
+        ).pack(anchor="w", padx=20, pady=15)
+
+        columns = (
+            "nip", "nama", "jk", "email",
+            "tlp", "pendidikan", "bidang"
+        )
+
+        table_frame = tk.Frame(container, bg="white")
+        table_frame.pack(
+            fill="both",
+            expand=True,
+            padx=15,
+            pady=(0, 15)
+        )
+
+        self.tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings"
+        )
+
+        headings = {
+            "nip": "NIP",
+            "nama": "NAMA DOSEN",
+            "jk": "JENIS KELAMIN",
+            "email": "EMAIL",
+            "tlp": "NO. TELEPON",
+            "pendidikan": "PENDIDIKAN",
+            "bidang": "BIDANG KEAHLIAN"
+        }
+
+        widths = {
+            "nip": 110,
+            "nama": 150,
+            "jk": 110,
+            "email": 170,
+            "tlp": 120,
+            "pendidikan": 120,
+            "bidang": 150
+        }
+
+        for col in columns:
+            self.tree.heading(col, text=headings[col])
+            self.tree.column(
+                col,
+                width=widths[col],
+                minwidth=90,
+                anchor="center"
+            )
+
+        scrollbar_y = ttk.Scrollbar(
+            table_frame,
+            orient="vertical",
+            command=self.tree.yview
+        )
+
+        scrollbar_x = ttk.Scrollbar(
+            table_frame,
+            orient="horizontal",
+            command=self.tree.xview
+        )
+
+        self.tree.configure(
+            yscrollcommand=scrollbar_y.set,
+            xscrollcommand=scrollbar_x.set
+        )
+
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        scrollbar_y.grid(row=0, column=1, sticky="ns")
+        scrollbar_x.grid(row=1, column=0, sticky="ew")
+
+        table_frame.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
+
+        self.tree.bind(
+            "<<TreeviewSelect>>",
+            self.select_item
+        )
+
+    # =====================================
+    # STATUS
+    # =====================================
+    def create_status(self):
+        self.status_var = tk.StringVar(
+            value="Formulir siap digunakan"
+        )
+
+        status = tk.Label(
+            self.root,
+            textvariable=self.status_var,
+            bg="#172554",
+            fg="white",
+            font=("Arial", 9),
+            anchor="w",
+            padx=20,
+            pady=10
+        )
+        status.pack(fill="x")
+
+    # =====================================
+    # MENGAMBIL NILAI FORM
+    # =====================================
+    def get_form_values(self):
+        return (
+            self.entries["nip"].get().strip(),
+            self.entries["nama"].get().strip(),
+            self.entries["jk"].get().strip(),
+            self.entries["email"].get().strip(),
+            self.entries["tlp"].get().strip(),
+            self.entries["pendidikan"].get().strip(),
+            self.entries["bidang"].get().strip()
+        )
+
+    # =====================================
+    # MENAMPILKAN DATA
+    # =====================================
+    def load_data(self):
+        db = None
+        cursor = None
+
         try:
-            # Membuka koneksi database
             db = connect_db()
             cursor = db.cursor()
-            # Mengeksekusi query DELETE berdasarkan NIP
-            cursor.execute("DELETE FROM dosen WHERE nip = %s", (nip,))
-            # Simpan perubahan secara permanen
+
+            cursor.execute("""
+                SELECT nip, nama_dosen, jenis_kelamin,
+                email, no_telepon, pendidikan_terakhir,
+                bidang_keahlian
+                FROM dosen
+            """)
+
+            records = cursor.fetchall()
+
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            for row in records:
+                self.tree.insert("", "end", values=row)
+
+            self.status_var.set(
+                f"Jumlah data dosen: {len(records)}"
+            )
+
+        except mysql.connector.Error as err:
+            messagebox.showerror(
+                "Kesalahan Database", str(err)
+            )
+
+        finally:
+            if cursor:
+                cursor.close()
+            if db and db.is_connected():
+                db.close()
+
+    # =====================================
+    # TAMBAH DATA
+    # =====================================
+    def tambah_data(self):
+        data = self.get_form_values()
+
+        if not data[0] or not data[1]:
+            messagebox.showwarning(
+                "Data Belum Lengkap",
+                "NIP dan Nama Dosen wajib diisi."
+            )
+            return
+
+        db = None
+        cursor = None
+
+        try:
+            db = connect_db()
+            cursor = db.cursor()
+
+            sql = """
+                INSERT INTO dosen
+                (nip, nama_dosen, jenis_kelamin, email,
+                no_telepon, pendidikan_terakhir,
+                bidang_keahlian)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+
+            cursor.execute(sql, data)
             db.commit()
-            # Menutup koneksi
-            db.close()
-            # Notifikasi sukses
-            messagebox.showinfo("Sukses", "Data berhasil dihapus!")
-            # Bersihkan form dan refresh tabel Treeview
-            clear_fields()
-            load_data()
-        except Exception as e:
-            # Notifikasi kegagalan hapus data
-            messagebox.showerror("Error", f"Gagal menghapus data: {e}")
 
-# Fungsi callback event saat salah satu baris pada tabel Treeview diklik/dipilih
-def select_item(event):
-    # Mendapatkan ID item baris yang dipilih
-    selected = tree.selection()
-    if selected:
-        # Mengambil daftar nilai kolom dari baris yang dipilih
-        values = tree.item(selected[0], "values")
-        # Mengosongkan isian form sebelum diisi data baru
-        clear_fields()
-        # Memasukkan data kolom tabel ke masing-masing elemen input form
-        entry_nip.insert(0, values[0])
-        entry_nama.insert(0, values[1])
-        combo_jk.set(values[2])
-        entry_email.insert(0, values[3])
-        entry_tlp.insert(0, values[4])
-        entry_pendidikan.insert(0, values[5])
-        entry_bidang.insert(0, values[6])
+            messagebox.showinfo(
+                "Berhasil",
+                "Data dosen berhasil ditambahkan."
+            )
 
-# Fungsi helper untuk menghapus/mengosongkan seluruh kotak input form
-def clear_fields():
-    entry_nip.delete(0, tk.END)
-    entry_nama.delete(0, tk.END)
-    combo_jk.set("")
-    entry_email.delete(0, tk.END)
-    entry_tlp.delete(0, tk.END)
-    entry_pendidikan.delete(0, tk.END)
-    entry_bidang.delete(0, tk.END)
+            self.clear_fields()
+            self.load_data()
 
-# --- GUI MAIN WINDOW ---
-# Membuat objek jendela utama Tkinter
-root = tk.Tk()
-# Mengatur judul jendela aplikasi
-root.title("Aplikasi Data Dosen - SIAKAD")
-# Mengatur dimensi ukuran jendela awal (lebar 900px, tinggi 550px)
-root.geometry("900x550")
+        except mysql.connector.Error as err:
+            if db and db.is_connected():
+                db.rollback()
 
-# Membuat frame bergaris tepi (LabelFrame) untuk mengelompokkan form input data
-frame_form = tk.LabelFrame(root, text=" Form Data Dosen ", padx=10, pady=10)
-# Menampilkan frame form di bagian atas jendela yang memenuhi lebar secara horizontal
-frame_form.pack(fill="x", padx=15, pady=10)
+            messagebox.showerror("Gagal Menambah Data", str(err))
 
-# Daftar teks label untuk setiap field data
-labels = ["NIP", "Nama Dosen", "Jenis Kelamin", "Email", "No Telepon", "Pendidikan Terakhir", "Bidang Keahlian"]
-# Perulangan untuk membuat label teks secara dinamis menggunakan layout Grid 2 kolom
-for i, label_text in enumerate(labels):
-    tk.Label(frame_form, text=label_text).grid(row=i//2, column=(i%2)*2, sticky="w", padx=5, pady=3)
+        finally:
+            if cursor:
+                cursor.close()
+            if db and db.is_connected():
+                db.close()
 
-# Membuat elemen Entry untuk input NIP
-entry_nip = tk.Entry(frame_form)
-entry_nip.grid(row=0, column=1, padx=5, pady=3, sticky="ew")
+    # =====================================
+    # UPDATE DATA
+    # =====================================
+    def update_data(self):
+        if not self.selected_nip:
+            messagebox.showwarning(
+                "Pilih Data",
+                "Silakan pilih data dosen yang ingin diperbarui."
+            )
+            return
 
-# Membuat elemen Entry untuk input Nama Dosen
-entry_nama = tk.Entry(frame_form)
-entry_nama.grid(row=0, column=3, padx=5, pady=3, sticky="ew")
+        data = self.get_form_values()
 
-# Membuat elemen Combobox untuk opsi pilihan Jenis Kelamin
-combo_jk = ttk.Combobox(frame_form, values=["Laki-laki", "Perempuan"], state="readonly")
-combo_jk.grid(row=1, column=1, padx=5, pady=3, sticky="ew")
+        if not data[0] or not data[1]:
+            messagebox.showwarning(
+                "Data Belum Lengkap",
+                "NIP dan Nama Dosen wajib diisi."
+            )
+            return
 
-# Membuat elemen Entry untuk input Email
-entry_email = tk.Entry(frame_form)
-entry_email.grid(row=1, column=3, padx=5, pady=3, sticky="ew")
+        db = None
+        cursor = None
 
-# Membuat elemen Entry untuk input Nomor Telepon
-entry_tlp = tk.Entry(frame_form)
-entry_tlp.grid(row=2, column=1, padx=5, pady=3, sticky="ew")
+        try:
+            db = connect_db()
+            cursor = db.cursor()
 
-# Membuat elemen Entry untuk input Pendidikan Terakhir
-entry_pendidikan = tk.Entry(frame_form)
-entry_pendidikan.grid(row=2, column=3, padx=5, pady=3, sticky="ew")
+            sql = """
+                UPDATE dosen SET
+                nip=%s, nama_dosen=%s, jenis_kelamin=%s,
+                email=%s, no_telepon=%s,
+                pendidikan_terakhir=%s, bidang_keahlian=%s
+                WHERE nip=%s
+            """
 
-# Membuat elemen Entry untuk input Bidang Keahlian
-entry_bidang = tk.Entry(frame_form)
-entry_bidang.grid(row=3, column=1, padx=5, pady=3, sticky="ew")
+            cursor.execute(
+                sql,
+                data + (self.selected_nip,)
+            )
 
-# Konfigurasi tata letak grid agar kolom input bersifat responsif menyesuaikan lebar frame
-frame_form.grid_columnconfigure(1, weight=1)
-frame_form.grid_columnconfigure(3, weight=1)
+            db.commit()
 
-# Membuat frame penampung tombol-tombol aksi CRUD
-frame_btn = tk.Frame(root)
-frame_btn.pack(fill="x", padx=15, pady=5)
+            messagebox.showinfo(
+                "Berhasil",
+                "Data dosen berhasil diperbarui."
+            )
 
-# Membuat dan menampilkan tombol Tambah, Edit, Hapus, dan Clear secara berdampingan
-tk.Button(frame_btn, text="Tambah", bg="#4CAF50", fg="white", command=tambah_data, width=12).pack(side="left", padx=5)
-tk.Button(frame_btn, text="Edit", bg="#2196F3", fg="white", command=edit_data, width=12).pack(side="left", padx=5)
-tk.Button(frame_btn, text="Hapus", bg="#f44336", fg="white", command=hapus_data, width=12).pack(side="left", padx=5)
-tk.Button(frame_btn, text="Clear", bg="#9E9E9E", fg="white", command=clear_fields, width=12).pack(side="left", padx=5)
+            self.clear_fields()
+            self.load_data()
 
-# Membuat frame penampung komponen tabel (Treeview)
-frame_table = tk.Frame(root)
-frame_table.pack(fill="both", expand=True, padx=15, pady=10)
+        except mysql.connector.Error as err:
+            if db and db.is_connected():
+                db.rollback()
 
-# Definisi nama identifier untuk setiap kolom tabel
-columns = ("nip", "nama_dosen", "jenis_kelamin", "email", "no_telepon", "pendidikan_terakhir", "bidang_keahlian")
-# Membuat komponen Treeview untuk menampilkan struktur data tabular
-tree = ttk.Treeview(frame_table, columns=columns, show="headings")
+            messagebox.showerror(
+                "Gagal Memperbarui Data", str(err)
+            )
 
-# Mengatur judul header yang tampil pada setiap kolom tabel
-tree.heading("nip", text="NIP")
-tree.heading("nama_dosen", text="Nama Dosen")
-tree.heading("jenis_kelamin", text="Laki-laki/Perempuan")
-tree.heading("email", text="Email")
-tree.heading("no_telepon", text="No Telepon")
-tree.heading("pendidikan_terakhir", text="Pendidikan")
-tree.heading("bidang_keahlian", text="Bidang Keahlian")
+        finally:
+            if cursor:
+                cursor.close()
+            if db and db.is_connected():
+                db.close()
 
-# Mengatur lebar relatif dari masing-masing kolom tabel
-tree.column("nip", width=70)
-tree.column("nama_dosen", width=160)
-tree.column("jenis_kelamin", width=100)
-tree.column("email", width=140)
-tree.column("no_telepon", width=100)
-tree.column("pendidikan_terakhir", width=80)
-tree.column("bidang_keahlian", width=150)
+    # =====================================
+    # HAPUS DATA
+    # =====================================
+    def hapus_data(self):
+        if not self.selected_nip:
+            messagebox.showwarning(
+                "Pilih Data",
+                "Pilih data dosen yang ingin dihapus."
+            )
+            return
 
-# Mengikat event klik/pilih item pada Treeview dengan fungsi handler select_item
-tree.bind("<<TreeviewSelect>>", select_item)
+        konfirmasi = messagebox.askyesno(
+            "Konfirmasi Hapus",
+            f"Yakin ingin menghapus data NIP "
+            f"{self.selected_nip}?"
+        )
 
-# Membuat scrollbar vertikal dan menghubungkannya dengan komponen Treeview
-scrollbar = ttk.Scrollbar(frame_table, orient="vertical", command=tree.yview)
-tree.configure(yscrollcommand=scrollbar.set)
+        if not konfirmasi:
+            return
 
-# Menampilkan Treeview dan Scrollbar ke dalam frame tabel
-tree.pack(side="left", fill="both", expand=True)
-scrollbar.pack(side="right", fill="y")
+        db = None
+        cursor = None
 
-# Memanggil fungsi load_data() untuk menampilkan data awal saat aplikasi pertama kali dijalankan
-load_data()
+        try:
+            db = connect_db()
+            cursor = db.cursor()
 
-# Memulai loop utama peristiwa GUI Tkinter
-root.mainloop()
+            cursor.execute(
+                "DELETE FROM dosen WHERE nip=%s",
+                (self.selected_nip,)
+            )
+
+            db.commit()
+
+            if cursor.rowcount > 0:
+                messagebox.showinfo(
+                    "Berhasil",
+                    "Data dosen berhasil dihapus."
+                )
+
+            self.clear_fields()
+            self.load_data()
+
+        except mysql.connector.Error as err:
+            if db and db.is_connected():
+                db.rollback()
+
+            messagebox.showerror(
+                "Gagal Menghapus Data", str(err)
+            )
+
+        finally:
+            if cursor:
+                cursor.close()
+            if db and db.is_connected():
+                db.close()
+
+    # =====================================
+    # PILIH DATA
+    # =====================================
+    def select_item(self, event=None):
+        selected = self.tree.selection()
+
+        if not selected:
+            return
+
+        values = self.tree.item(
+            selected[0], "values"
+        )
+
+        self.clear_fields()
+
+        self.entries["nip"].insert(0, values[0])
+        self.entries["nama"].insert(0, values[1])
+        self.entries["jk"].set(values[2])
+        self.entries["email"].insert(0, values[3])
+        self.entries["tlp"].insert(0, values[4])
+        self.entries["pendidikan"].insert(0, values[5])
+        self.entries["bidang"].insert(0, values[6])
+
+        self.selected_nip = values[0]
+
+        self.status_var.set(
+            f"Data dipilih: {values[1]} | NIP: {values[0]}"
+        )
+
+    # =====================================
+    # RESET FORM
+    # =====================================
+    def clear_fields(self):
+        for key, widget in self.entries.items():
+            if key == "jk":
+                widget.set("")
+            else:
+                widget.delete(0, tk.END)
+
+        self.selected_nip = None
+
+        for item in self.tree.selection():
+            self.tree.selection_remove(item)
+
+        self.status_var.set(
+            "Formulir siap digunakan"
+        )
+
+
+# =====================================
+# MENJALANKAN APLIKASI
+# =====================================
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SIAKADApp(root)
+    root.mainloop()

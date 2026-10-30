@@ -1,55 +1,181 @@
-# Mengimpor modul tkinter untuk membuat antarmuka grafis (GUI)
+
 import tkinter as tk
-# Mengimpor modul os untuk mengelola alur path/direktori file sistem
+from tkinter import ttk
 import os
 
-# Memunculkan jendela utama aplikasi Tkinter
+# Membuat jendela utama
 root = tk.Tk()
-# Mengatur teks pada judul jendela aplikasi
 root.title("Konverter Suhu")
-# Menentukan ukuran resolusi jendela aplikasi (lebar 300px, tinggi 180px)
-root.geometry("300x180")
+root.geometry("430x500")
+root.resizable(False, False)
+root.configure(bg="#F1F5F9")
 
-# Mengambil lokasi path folder dari file skrip Python ini berada
-base_dir = os.path.dirname(__file__)
-# Menggabungkan direktori utama dengan nama file ikon 'calc.ico'
+# Ikon aplikasi
+base_dir = os.path.dirname(os.path.abspath(__file__))
 icon_path = os.path.join(base_dir, "calc.ico")
 
-# Mengecek apakah file ikon 'calc.ico' tersedia sebelum dimuat ke title bar
 if os.path.exists(icon_path):
-    # Mengganti ikon default Tkinter pada title bar menggunakan file .ico
     root.iconbitmap(icon_path)
 
-# --- FUNGSI LOGIKA KONVERSI SUHU ---
+# Warna tema
+NAVY = "#172554"
+BLUE = "#2563EB"
+LIGHT_BLUE = "#DBEAFE"
+WHITE = "#FFFFFF"
+TEXT = "#1E293B"
+GRAY = "#64748B"
+GREEN = "#15803D"
+RED = "#DC2626"
+
+# Header aplikasi
+header = tk.Frame(root, bg=NAVY, height=145)
+header.pack(fill="x")
+header.pack_propagate(False)
+
+tk.Label(
+    header,
+    text="🌡 KONVERTER SUHU",
+    font=("Segoe UI", 20, "bold"),
+    bg=NAVY,
+    fg=WHITE
+).pack(pady=(28, 7))
+
+tk.Label(
+    header,
+    text="Konversi Celsius ke Fahrenheit dengan mudah",
+    font=("Segoe UI", 9),
+    bg=NAVY,
+    fg="#BFDBFE"
+).pack()
+
+# Panel utama
+card = tk.Frame(
+    root,
+    bg=WHITE,
+    highlightbackground="#E2E8F0",
+    highlightthickness=1
+)
+card.pack(fill="both", expand=True, padx=25, pady=20)
+
+tk.Label(
+    card,
+    text="Masukkan Suhu",
+    font=("Segoe UI", 15, "bold"),
+    bg=WHITE,
+    fg=TEXT
+).pack(pady=(22, 5))
+
+tk.Label(
+    card,
+    text="Suhu dalam derajat Celsius (°C)",
+    font=("Segoe UI", 10),
+    bg=WHITE,
+    fg=GRAY
+).pack(pady=(0, 12))
+
+# Input suhu
+entry_celsius = tk.Entry(
+    card,
+    font=("Segoe UI", 16),
+    justify="center",
+    relief="solid",
+    bd=1,
+    bg="#F8FAFC",
+    fg=TEXT,
+    insertbackground=BLUE
+)
+entry_celsius.pack(fill="x", padx=35, ipady=9)
+
+entry_celsius.focus_set()
+
+# Label hasil
+label_hasil = tk.Label(
+    card,
+    text="Hasil konversi akan muncul di sini",
+    font=("Segoe UI", 11, "bold"),
+    bg=LIGHT_BLUE,
+    fg=NAVY,
+    wraplength=300,
+    padx=10,
+    pady=15
+)
+label_hasil.pack(fill="x", padx=35, pady=18)
+
 def konversi():
     try:
-        # Mengambil nilai masukan dari Entry dan mengubah tipe datanya menjadi desimal (float)
-        celsius = float(entry_celsius.get())
-        # Menghitung konversi suhu dari Celsius ke Fahrenheit (ditambahkan operator perkalian '*')
-        fahrenheit = (celsius * 9/5) + 32
-        # Memperbarui teks hasil konversi pada label dengan warna hijau
-        label_hasil.config(text=f"Hasil: {fahrenheit:.1f} °F", fg="green")
+        celsius = float(entry_celsius.get().strip())
+        fahrenheit = (celsius * 9 / 5) + 32
+
+        label_hasil.config(
+            text=f"{celsius:g} °C  =  {fahrenheit:.2f} °F",
+            bg="#DCFCE7",
+            fg=GREEN
+        )
+
     except ValueError:
-        # Menampilkan pesan error jika teks yang dimasukkan user bukan angka
-        label_hasil.config(text="Masukkan angka yang valid!", fg="red")
+        label_hasil.config(
+            text="Masukkan angka yang valid!",
+            bg="#FEE2E2",
+            fg=RED
+        )
 
-# Membuat dan menampilkan label petunjuk "Suhu (Celsius):"
-tk.Label(root, text="Suhu (Celsius):", font=('Arial', 11)).pack(pady=(15, 5))
+def reset():
+    entry_celsius.delete(0, tk.END)
+    label_hasil.config(
+        text="Hasil konversi akan muncul di sini",
+        bg=LIGHT_BLUE,
+        fg=NAVY
+    )
+    entry_celsius.focus_set()
 
-# Membuat kotak input teks untuk nilai Celsius dengan teks berada di tengah (justify="center")
-entry_celsius = tk.Entry(root, font=('Arial', 12), justify="center")
-# Menampilkan kotak input di jendela
-entry_celsius.pack(pady=5)
+# Tombol konversi
+btn_konversi = tk.Button(
+    card,
+    text="KONVERSI SUHU",
+    command=konversi,
+    font=("Segoe UI", 11, "bold"),
+    bg=BLUE,
+    fg=WHITE,
+    activebackground="#1D4ED8",
+    activeforeground=WHITE,
+    relief="flat",
+    cursor="hand2"
+)
+btn_konversi.pack(fill="x", padx=35, ipady=9)
 
-# Membuat tombol untuk mengeksekusi fungsi konversi() saat diklik
-btn_hitung = tk.Button(root, text="Konversi ke Fahrenheit", command=konversi, font=('Arial', 10, 'bold'))
-# Menampilkan tombol konversi
-btn_hitung.pack(pady=10)
+btn_konversi.bind(
+    "<Enter>",
+    lambda event: btn_konversi.config(bg="#1D4ED8")
+)
+btn_konversi.bind(
+    "<Leave>",
+    lambda event: btn_konversi.config(bg=BLUE)
+)
 
-# Membuat label untuk menampilkan teks status atau hasil perhitungan
-label_hasil = tk.Label(root, text="Hasil: -", font=('Arial', 11, 'bold'))
-# Menampilkan label hasil
-label_hasil.pack(pady=5)
+# Tombol reset
+btn_reset = tk.Button(
+    card,
+    text="Reset",
+    command=reset,
+    font=("Segoe UI", 10),
+    bg=WHITE,
+    fg=GRAY,
+    activebackground="#E2E8F0",
+    relief="flat",
+    cursor="hand2"
+)
+btn_reset.pack(pady=(7, 12))
 
-# Memulai event loop utama agar GUI tetap berjalan dan dapat berinteraksi
+# Tombol Enter untuk konversi
+root.bind("<Return>", lambda event: konversi())
+
+# Footer
+tk.Label(
+    root,
+    text="Aplikasi Konverter Suhu | Python Tkinter",
+    font=("Segoe UI", 8),
+    bg="#F1F5F9",
+    fg=GRAY
+).pack(pady=(0, 10))
+
 root.mainloop()
